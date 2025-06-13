@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Remote Support Console - Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a; color: #fff; height: 100vh; overflow: hidden;
+        }
+        
+        .header {
+            background: #2d2d2d; padding: 15px 20px; border-bottom: 1px solid #444;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        
+        .server-status {
+            display: flex; align-items: center; gap: 10px;
+        }
+        
+        .status-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #ff4444; transition: background 0.3s;
+        }
+        
+        .status-dot.online { background: #44ff44; }
+        
+        .main-container {
+            display: flex; height: calc(100vh - 70px);
+        }
+        
+        .sidebar {
+            width: 300px; background: #252525; border-right: 1px solid #444;
+            display: flex; flex-direction: column;
+        }
+        
+        .device-list {
+            flex: 1; overflow-y: auto; padding: 10px;
+        }
+        
+        .device-item {
+            background: #333; border-radius: 8px; padding: 12px; margin-bottom: 8px;
+            cursor: pointer; transition: all 0.3s; border-left: 4px solid transparent;
+        }
+        
+        .device-item:hover { background: #3a3a3a; }
+        .device-item.online { border-left-color: #44ff44; }
+        .device-item.offline { border-left-color: #ff4444; }
+        .device-item.selected { background: #404040; border-left-color: #4a9eff; }
+        
+        .device-name { font-weight: bold; margin-bottom: 4px; }
+        .device-info { font-size: 12px; color: #aaa; }
+        
+        .content-area {
+            flex: 1; display: flex; flex-direction: column;
+        }
+        
+        .control-panel {
+            background: #2d2d2d; padding: 15px; border-bottom: 1px solid #444;
+            display: flex; gap: 10px; flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;
+            font-size: 14px; transition: all 0.3s; color: white;
+        }
+        
+        .btn-primary { background: #4a9eff; }
+        .btn-primary:hover { background: #3a8eef; }
+        .btn-success { background: #44ff44; color: black; }
+        .btn-success:hover { background: #34ef34; }
+        .btn-danger { background: #ff4444; }
+        .btn-danger:hover { background: #ef3434; }
+        
+        .main-view {
+            flex: 1; background: #1a1a1a; position: relative; overflow: hidden;
+        }
+        
+        .view-container {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            display: none; padding: 20px; overflow-y: auto;
+        }
+        
+        .view-container.active { display: block; }
+        
+        .screen-viewer {
+            background: #000; border-radius: 8px; min-height: 400px;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px dashed #444; position: relative;
+        }
+        
+        .file-manager {
+            background: #2d2d2d; border-radius: 8px; padding: 20px;
+        }
+        
+        .file-list {
+            max-height: 300px; overflow-y: auto; margin-top: 10px;
+        }
+        
+        .file-item {
+            padding: 8px 12px; background: #333; margin-bottom: 4px;
+            border-radius: 4px; cursor: pointer; display: flex;
+            justify-content: space-between; align-items: center;
+        }
+        
+        .file-item:hover { background: #3a3a3a; }
+        
+        .terminal {
+            background: #000; border-radius: 8px; padding: 15px;
+            font-family: 'Courier New', monospace; height: 400px;
+            overflow-y: auto; font-size: 14px;
+        }
+        
+        .terminal-input {
+            background: transparent; border: none; color: #44ff44;
+            font-family: inherit; font-size: inherit; width: 100%;
+            outline: none; margin-top: 10px;
+        }
+        
+        .message-panel {
+            background: #2d2d2d; border-radius: 8px; padding: 20px;
+        }
+        
+        .message-input {
+            width: 100%; padding: 10px; background: #333; border: 1px solid #555;
+            color: white; border-radius: 4px; margin-top: 10px;
+        }
+        
+        .process-list {
+            background: #2d2d2d; border-radius: 8px; padding: 20px;
+        }
+        
+        .process-item {
+            display: flex; justify-content: space-between; padding: 8px 0;
+            border-bottom: 1px solid #444;
+        }
+        
+        .logs-panel {
+            background: #2d2d2d; border-radius: 8px; padding: 20px;
+        }
+        
+        .log-entry {
+            font-family: monospace; font-size: 12px; padding: 4px 8px;
+            background: #333; margin-bottom: 2px; border-radius: 2px;
+        }
+        
+        .welcome-screen {
+            text-align: center; padding: 100px 20px;
+        }
+        
+        .welcome-screen h2 { margin-bottom: 20px; color: #4a9eff; }
+        .welcome-screen p { color: #aaa; line-height: 1.6; }
+        
+        .file-list-header {
+            position: sticky;
+            top: 0;
+            background: #2d2d2d;
+            z-index: 1;
+        }
+        
+        .file-item.header {
+            font-weight: bold;
+            background: #333;
+            border-bottom: 2px solid #444;
+        }
+        
+        .file-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr 3fr;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #333;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            align-items: center;
+        }
+        
+        .file-item:hover {
+            background: #3a3a3a;
+        }
+        
+        .file-path {
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .terminal {
+            font-family: 'Consolas', 'Courier New', monospace;
+            line-height: 1.4;
+        }
+        
+        .terminal div {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .file-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr 3fr 1fr;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #333;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            align-items: center;
+        }
+        
+        .file-item:hover {
+            background: #3a3a3a;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        
+        .file-path {
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .process-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #333;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            align-items: center;
+        }
+        
+        .process-item.header {
+            background: #2d2d2d;
+            font-weight: bold;
+            border-bottom: 2px solid #444;
+        }
+        
+        .terminal {
+            background: #000;
+            color: #fff;
+            font-family: 'Consolas', 'Courier New', monospace;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .terminal div {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+        
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: #44ff44;
+            font-family: inherit;
+            font-size: inherit;
+            width: 100%;
+            outline: none;
+            margin-top: 10px;
+            padding: 4px;
+        }
+        
+        .terminal-input:focus {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .file-list {
+            max-height: 600px;
+            overflow-y: auto;
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .file-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr 3fr 1fr;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #333;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            align-items: center;
+        }
+        
+        .file-item:hover {
+            background: #3a3a3a;
+        }
+        
+        .file-item.header {
+            background: #2d2d2d;
+            font-weight: bold;
+            border-bottom: 2px solid #444;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        
+        .file-path {
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+        
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Global Remote Support Console</h1>
+        <div class="server-status">
+            <span>Server:</span>
+            <div class="status-dot" id="serverStatus"></div>
+            <span id="statusText">Starting...</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="device-list" id="deviceList">
+                <!-- Devices will be populated here -->
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="control-panel">
+                <button class="btn btn-primary" onclick="showView('screen')">Remote controll</button>
+                <button class="btn btn-primary" onclick="showView('files')">File Manager</button>
+                <button class="btn btn-primary" onclick="showView('terminal')">Terminal</button>
+                <button class="btn btn-primary" onclick="showView('processes')">Processes</button>
+                <button class="btn btn-primary" onclick="showView('messages')">Messages</button>
+                <button class="btn btn-primary" onclick="showView('logs')">Logs</button>
+                <button class="btn btn-success" onclick="refreshDevices()">Refresh</button>
+                <button class="btn btn-danger" onclick="disconnectDevice()">Disconnect</button>
+            </div>
+
+            <div class="main-view">
+                <div class="view-container active" id="welcome">
+                    <div class="welcome-screen">
+                        <h2>Welcome to Remote Support Console</h2>
+                        <p>Select a device from the left panel to begin remote administration.</p>
+                        <p>Server starting automatically...</p>
+                    </div>
+                </div>
+                
+                <div class="view-container" id="screen">
+                    <div class="screen-viewer">
+                        <div>Remote screen will appear here</div>
+                    </div>
+                </div>
+
+                <div class="view-container" id="files">
+                    <div class="file-manager">
+                        <h3>File Manager</h3>
+                        <div class="file-list">
+                            <div class="file-item header">
+                                <span>Name</span>
+                                <span>Type</span>
+                                <span>Path</span>
+                                <span>Actions</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="view-container" id="terminal">
+                    <div class="terminal">
+                        <div>Remote Terminal - Ready</div>
+                        <div style="color: #44ff44;">user@remote:~$ </div>
+                        <input type="text" class="terminal-input" placeholder="Enter command...">
+                    </div>
+                </div>
+
+                <div class="view-container" id="processes">
+                    <div class="process-list">
+                        <h3>Running Processes</h3>
+                        <div class="process-item">
+                            <span>Process Name</span>
+                            <span>CPU: 0% | RAM: 0MB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="view-container" id="messages">
+                    <div class="message-panel">
+                        <h3>Send Message</h3>
+                        <textarea class="message-input" placeholder="Type your message here..." rows="4"></textarea>
+                        <button class="btn btn-primary" style="margin-top: 10px;">Send Message</button>
+                    </div>
+                </div>
+
+                <div class="view-container" id="logs">
+                    <div class="logs-panel">
+                        <h3>Activity Logs</h3>
+                        <div class="log-entry">[2024-01-15 14:30:25] Device connected: Office-PC-Brazil</div>
+                        <div class="log-entry">[2024-01-15 14:30:30] Screen sharing started</div>
+                        <div class="log-entry">[2024-01-15 14:31:15] File transferred: backup.zip</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let selectedClient = null;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        const RECONNECT_DELAY = 3000;
+        let screenSharingActive = false;
+        let mouseControlActive = false;
+
+        function updateServerStatus(connected) {
+            const statusDot = document.getElementById('serverStatus');
+            const statusText = document.getElementById('statusText');
+            statusDot.className = 'status-dot ' + (connected ? 'online' : 'offline');
+            statusText.textContent = connected ? 'Connected' : 'Disconnected';
+        }
+
+        function connectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('Connected to server');
+                updateServerStatus(true);
+                reconnectAttempts = 0;
+                ws.send(JSON.stringify({ type: 'admin_connect' }));
+            };
+            
+            ws.onclose = () => {
+                console.log('Disconnected from server');
+                updateServerStatus(false);
+                
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttempts++;
+                    console.log(`Reconnecting in ${RECONNECT_DELAY/1000} seconds... (Attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+                    setTimeout(connectWebSocket, RECONNECT_DELAY);
+                } else {
+                    console.error('Max reconnection attempts reached');
+                    alert('Connection to server lost. Please refresh the page to try again.');
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {
+                    console.error('Error parsing server message:', e);
+                }
+            };
+        }
+
+        function handleServerMessage(data) {
+            console.log('Received server message:', data);  // Add logging
+            switch (data.type) {
+                case 'clients':
+                    updateDeviceList(data.clients);
+                    break;
+                case 'client_connected':
+                    addDeviceToList(data);
+                    break;
+                case 'client_disconnected':
+                    removeDeviceFromList(data.client_id);
+                    break;
+                case 'response':
+                    handleClientResponse(data);
+                    break;
+                default:
+                    console.log('Unknown message type:', data.type);
+            }
+        }
+
+        function updateDeviceList(clients) {
+            console.log('Updating device list with:', clients);  // Add logging
+            const deviceList = document.getElementById('deviceList');
+            const currentSelection = selectedClient;
+            
+            deviceList.innerHTML = '';
+            clients.forEach(client => {
+                console.log('Creating device element for:', client);  // Add logging
+                const deviceItem = createDeviceElement(client);
+                if (client.client_id === currentSelection) {
+                    deviceItem.classList.add('selected');
+                }
+                deviceList.appendChild(deviceItem);
+            });
+            
+            // If no device is selected and we have devices, select the first one
+            if (!selectedClient && clients.length > 0) {
+                console.log('Selecting first device:', clients[0].client_id);  // Add logging
+                selectDevice(clients[0].client_id);
+            }
+        }
+
+        function createDeviceElement(client) {
+            const div = document.createElement('div');
+            div.className = 'device-item';
+            div.dataset.clientId = client.client_id;
+            
+            const name = document.createElement('div');
+            name.className = 'device-name';
+            name.textContent = client.name || 'Unknown Device';
+            
+            const info = document.createElement('div');
+            info.className = 'device-info';
+            const infoParts = [];
+            if (client.hostname) infoParts.push(client.hostname);
+            if (client.ip) infoParts.push(client.ip);
+            if (client.platform) infoParts.push(client.platform);
+            info.textContent = infoParts.join(' - ');
+            
+            div.appendChild(name);
+            div.appendChild(info);
+            
+            div.onclick = () => selectDevice(client.client_id);
+            
+            return div;
+        }
+
+        function addDeviceToList(client) {
+            const deviceList = document.getElementById('deviceList');
+            const existingDevice = document.querySelector(`.device-item[data-client-id="${client.client_id}"]`);
+            
+            if (existingDevice) {
+                existingDevice.remove();
+            }
+            
+            const deviceItem = createDeviceElement(client);
+            deviceList.appendChild(deviceItem);
+            
+            // If this is the first device, select it
+            if (!selectedClient) {
+                selectDevice(client.client_id);
+            }
+        }
+
+        function removeDeviceFromList(clientId) {
+            const device = document.querySelector(`.device-item[data-client-id="${clientId}"]`);
+            if (device) {
+                device.remove();
+            }
+            
+            if (selectedClient === clientId) {
+                selectedClient = null;
+                showView('welcome');
+            }
+        }
+
+        function selectDevice(clientId) {
+            const devices = document.querySelectorAll('.device-item');
+            devices.forEach(device => {
+                device.classList.remove('selected');
+                if (device.dataset.clientId === clientId) {
+                    device.classList.add('selected');
+                    selectedClient = clientId;
+                    console.log('Selected client:', clientId);
+                }
+            });
+            
+            if (selectedClient) {
+                showView('terminal'); // Default to terminal view when selecting a device
+            }
+        }
+
+        function showView(viewId) {
+            if (!selectedClient && viewId !== 'welcome') {
+                alert('Please select a device first');
+                return;
+            }
+            
+            // Stop screen sharing when switching views
+            if (screenSharingActive && viewId !== 'screen') {
+                stopScreenSharing();
+            }
+            
+            // Hide all views
+            document.querySelectorAll('.view-container').forEach(view => {
+                view.classList.remove('active');
+            });
+            
+            // Show selected view
+            const selectedView = document.getElementById(viewId);
+            if (selectedView) {
+                selectedView.classList.add('active');
+                
+                // Initialize view-specific functionality
+                switch (viewId) {
+                    case 'screen':
+                        if (!screenSharingActive) {
+                            startScreenSharing();
+                        }
+                        break;
+                    case 'terminal':
+                        const terminalInput = document.querySelector('.terminal-input');
+                        if (terminalInput) {
+                            terminalInput.focus();
+                            terminalInput.onkeypress = (e) => {
+                                if (e.key === 'Enter') {
+                                    const command = terminalInput.value.trim();
+                                    if (command) {
+                                        sendCommand(command);
+                                        terminalInput.value = '';
+                                    }
+                                }
+                            };
+                        }
+                        break;
+                    case 'files':
+                        sendCommand('get_files');
+                        break;
+                    case 'processes':
+                        sendCommand('get_processes');
+                        break;
+                    case 'messages':
+                        const messageInput = document.querySelector('.message-input');
+                        const sendButton = messageInput.nextElementSibling;
+                        if (messageInput && sendButton) {
+                            messageInput.onkeypress = (e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    sendButton.click();
+                                }
+                            };
+                            sendButton.onclick = () => {
+                                const message = messageInput.value.trim();
+                                if (message) {
+                                    sendCommand(`message:${message}`);
+                                    messageInput.value = '';
+                                }
+                            };
+                        }
+                        break;
+                }
+            }
+        }
+
+        function sendCommand(command) {
+            if (!selectedClient || !ws || ws.readyState !== WebSocket.OPEN) {
+                console.error('Cannot send command:', { selectedClient, wsState: ws?.readyState });  // Add logging
+                alert('Not connected to a device');
+                return;
+            }
+            
+            console.log('Sending command:', { command, client_id: selectedClient });  // Add logging
+            ws.send(JSON.stringify({
+                type: 'command',
+                client_id: selectedClient,
+                command: command
+            }));
+        }
+
+        function handleClientResponse(data) {
+            if (data.client_id !== selectedClient) return;
+            console.log('Handling client response:', data);  // Add logging
+            
+            switch (data.action) {
+                case 'exec':
+                    const terminal = document.querySelector('.terminal');
+                    if (terminal) {
+                        const output = document.createElement('div');
+                        output.style.whiteSpace = 'pre-wrap';
+                        output.style.wordBreak = 'break-word';
+                        
+                        // Style based on status
+                        if (data.status === 'error') {
+                            output.style.color = '#ff4444';
+                        } else if (data.status === 'started') {
+                            output.style.color = '#44ff44';
+                        } else if (data.status === 'completed') {
+                            output.style.color = '#4a9eff';
+                        }
+                        
+                        output.textContent = data.data;
+                        terminal.appendChild(output);
+                        terminal.scrollTop = terminal.scrollHeight;
+                    }
+                    break;
+                    
+                case 'screenshot':
+                    const screenViewer = document.querySelector('.screen-viewer');
+                    if (screenViewer) {
+                        const img = document.createElement('img');
+                        img.style.maxWidth = '100%';
+                        img.style.height = 'auto';
+                        img.src = 'data:image/jpeg;base64,' + data.data;
+                        screenViewer.innerHTML = '';
+                        screenViewer.appendChild(img);
+                        
+                        if (mouseControlActive) {
+                            img.style.cursor = 'crosshair';
+                            img.onclick = handleScreenClick;
+                            img.onmousemove = handleScreenMouseMove;
+                            img.oncontextmenu = handleScreenRightClick;
+                        }
+                    }
+                    break;
+                    
+                case 'screen_sharing_started':
+                    screenSharingActive = true;
+                    updateScreenSharingStatus(true);
+                    break;
+                    
+                case 'screen_sharing_stopped':
+                    screenSharingActive = false;
+                    updateScreenSharingStatus(false);
+                    break;
+                    
+                case 'processes':
+                    updateProcessList(data.data);
+                    break;
+                    
+                case 'files':
+                    console.log('Updating file list with:', data.data);  // Add logging
+                    updateFileList(data.data);
+                    break;
+                    
+                case 'message':
+                    // Add message to logs
+                    const logsPanel = document.querySelector('.logs-panel');
+                    if (logsPanel) {
+                        const logEntry = document.createElement('div');
+                        logEntry.className = 'log-entry';
+                        logEntry.textContent = `[${new Date().toLocaleString()}] Message: ${data.data}`;
+                        logsPanel.appendChild(logEntry);
+                        logsPanel.scrollTop = logsPanel.scrollHeight;
+                    }
+                    break;
+                    
+                case 'file_download':
+                    // Handle file download response
+                    if (data.status === 'error') {
+                        alert('Error downloading file: ' + data.data);
+                    } else {
+                        // Create a download link and click it
+                        const link = document.createElement('a');
+                        link.href = 'data:application/octet-stream;base64,' + data.data;
+                        link.download = data.filename || 'downloaded_file';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }
+                    break;
+            }
+        }
+
+        function updateScreenSharingStatus(active) {
+            const screenButton = document.querySelector('button[onclick="showView(\'screen\')"]');
+            if (screenButton) {
+                screenButton.textContent = active ? 'Stop Screen Share' : 'Screen Share';
+                screenButton.onclick = active ? stopScreenSharing : startScreenSharing;
+            }
+        }
+
+        function startScreenSharing() {
+            if (!selectedClient || !ws || ws.readyState !== WebSocket.OPEN) {
+                console.error('Cannot start screen sharing:', { selectedClient, wsState: ws?.readyState });  // Add logging
+                alert('Not connected to a device');
+                return;
+            }
+            console.log('Starting screen sharing for client:', selectedClient);  // Add logging
+            sendCommand('start_screen_sharing');
+            mouseControlActive = true;
+        }
+
+        function stopScreenSharing() {
+            if (!selectedClient || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            sendCommand('stop_screen_sharing');
+            mouseControlActive = false;
+        }
+
+        function handleScreenClick(e) {
+            if (!mouseControlActive || !selectedClient) {
+                console.log('Mouse control not active or no client selected');  // Add logging
+                return;
+            }
+            const rect = e.target.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) * (e.target.naturalWidth / rect.width));
+            const y = Math.round((e.clientY - rect.top) * (e.target.naturalHeight / rect.height));
+            
+            console.log('Sending mouse click:', { x, y, client_id: selectedClient });  // Add logging
+            ws.send(JSON.stringify({
+                type: 'command',
+                client_id: selectedClient,
+                command: 'mouse',
+                action: 'click',
+                x: x,
+                y: y,
+                button: e.button === 2 ? 'right' : 'left'
+            }));
+        }
+
+        function handleScreenMouseMove(e) {
+            if (!mouseControlActive || !selectedClient) {
+                return;
+            }
+            const rect = e.target.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) * (e.target.naturalWidth / rect.width));
+            const y = Math.round((e.clientY - rect.top) * (e.target.naturalHeight / rect.height));
+            
+            console.log('Sending mouse move:', { x, y, client_id: selectedClient });  // Add logging
+            ws.send(JSON.stringify({
+                type: 'command',
+                client_id: selectedClient,
+                command: 'mouse',
+                action: 'move',
+                x: x,
+                y: y
+            }));
+        }
+
+        function handleScreenRightClick(e) {
+            e.preventDefault();
+            if (!mouseControlActive || !selectedClient) {
+                return;
+            }
+            const rect = e.target.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) * (e.target.naturalWidth / rect.width));
+            const y = Math.round((e.clientY - rect.top) * (e.target.naturalHeight / rect.height));
+            
+            console.log('Sending right click:', { x, y, client_id: selectedClient });  // Add logging
+            ws.send(JSON.stringify({
+                type: 'command',
+                client_id: selectedClient,
+                command: 'mouse',
+                action: 'rightclick',
+                x: x,
+                y: y
+            }));
+        }
+
+        function updateProcessList(processData) {
+            console.log('Updating process list with:', processData);  // Add logging
+            const processList = document.querySelector('.process-list');
+            if (!processList) return;
+            
+            let html = '<h3>Running Processes</h3>';
+            html += '<div class="process-item header">';
+            html += '<span>Process Name</span><span>CPU | Memory</span>';
+            html += '</div>';
+            
+            if (typeof processData === 'string') {
+                const lines = processData.split('\n');
+                lines.forEach(line => {
+                    if (line.trim()) {
+                        const parts = line.split(',');
+                        if (parts.length >= 2) {
+                            const name = parts[0].replace(/"/g, '').trim();
+                            const info = parts.slice(1).join(',').replace(/"/g, '').trim();
+                            html += `
+                                <div class="process-item">
+                                    <span>${name}</span>
+                                    <span>${info}</span>
+                                </div>
+                            `;
+                        }
+                    }
+                });
+            }
+            
+            processList.innerHTML = html;
+        }
+
+        function updateFileList(fileData) {
+            console.log('Updating file list with:', fileData);  // Add logging
+            const fileList = document.querySelector('.file-list');
+            if (!fileList) return;
+            
+            let html = '<div class="file-list-header">';
+            html += '<div class="file-item header">';
+            html += '<span>Name</span><span>Type</span><span>Path</span><span>Actions</span>';
+            html += '</div></div>';
+            
+            // Add back button if we're in a subdirectory
+            if (typeof fileData === 'string' && (fileData.includes('\\') || fileData.includes('/'))) {
+                html += `
+                    <div class="file-item">
+                        <span>📁 ..</span>
+                        <span>Parent Directory</span>
+                        <span class="file-path">..</span>
+                        <span class="file-actions">
+                            <button class="btn btn-primary btn-sm" onclick="navigateToParent()">Back</button>
+                        </span>
+                    </div>
+                `;
+            }
+            
+            if (typeof fileData === 'string') {
+                const lines = fileData.split('\n');
+                lines.forEach(line => {
+                    if (line.trim()) {
+                        const path = line.trim();
+                        const isDir = path.endsWith('\\') || path.endsWith('/');
+                        const name = path.split(/[\\/]/).pop() || path;
+                        const icon = isDir ? '📁' : '📄';
+                        const escapedPath = path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                        
+                        html += `
+                            <div class="file-item">
+                                <span>${icon} ${name}</span>
+                                <span>${isDir ? 'Folder' : getFileType(name)}</span>
+                                <span class="file-path">${path}</span>
+                                <span class="file-actions">
+                                    ${isDir ? 
+                                        `<button class="btn btn-primary btn-sm" onclick="navigateToFolder('${escapedPath}')">Open</button>` :
+                                        `<button class="btn btn-success btn-sm" onclick="downloadFile('${escapedPath}')">Download</button>`
+                                    }
+                                </span>
+                            </div>
+                        `;
+                    }
+                });
+            }
+            
+            fileList.innerHTML = html;
+        }
+
+        function getFileType(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const types = {
+                'exe': 'Application',
+                'bat': 'Batch File',
+                'cmd': 'Command File',
+                'txt': 'Text File',
+                'pdf': 'PDF Document',
+                'doc': 'Word Document',
+                'docx': 'Word Document',
+                'xls': 'Excel Spreadsheet',
+                'xlsx': 'Excel Spreadsheet',
+                'jpg': 'Image',
+                'jpeg': 'Image',
+                'png': 'Image',
+                'gif': 'Image',
+                'zip': 'Archive',
+                'rar': 'Archive',
+                '7z': 'Archive',
+                'mp3': 'Audio',
+                'mp4': 'Video',
+                'html': 'Web Page',
+                'css': 'Style Sheet',
+                'js': 'JavaScript',
+                'py': 'Python Script',
+                'json': 'JSON File',
+                'xml': 'XML File',
+                'ini': 'Configuration',
+                'log': 'Log File'
+            };
+            return types[ext] || 'File';
+        }
+
+        function navigateToFolder(path) {
+            console.log('Navigating to folder:', path);
+            // Remove trailing slash for Windows paths
+            path = path.replace(/\\$/, '');
+            sendCommand(`cd "${path}"`);
+        }
+
+        function navigateToParent() {
+            console.log('Navigating to parent directory');
+            sendCommand('cd ..');
+        }
+
+        function downloadFile(path) {
+            console.log('Downloading file:', path);
+            // Remove trailing slash if present
+            path = path.replace(/\\$/, '');
+            sendCommand(`download_file:${path}`);
+        }
+
+        // Add refresh button functionality
+        document.querySelector('button[onclick="refreshDevices()"]').onclick = () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'admin_connect' }));
+            }
+        };
+
+        // Add disconnect button functionality
+        document.querySelector('button[onclick="disconnectDevice()"]').onclick = () => {
+            if (selectedClient) {
+                sendCommand('disconnect');
+                selectedClient = null;
+                showView('welcome');
+            }
+        };
+
+        // Initialize WebSocket connection
+        connectWebSocket();
+        
+        // Handle window unload
+        window.addEventListener('beforeunload', () => {
+            if (screenSharingActive) {
+                stopScreenSharing();
+            }
+            if (ws) {
+                ws.close();
+            }
+        });
+    </script>
+</body>
+</html>
